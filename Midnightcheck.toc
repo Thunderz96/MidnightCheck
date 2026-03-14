@@ -3,6 +3,7 @@
 ## Notes: A modern, dark-themed raid readiness tracker.
 ## Author: NickW
 ## Version: 1.2.1
+## X-Curse-Project-ID: 1485667
 ## SavedVariables: MidnightCheckDB
 
 Database.lua
