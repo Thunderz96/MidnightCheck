@@ -1,0 +1,9 @@
+## Interface: 120001
+## Title: Midnight Check
+## Notes: A modern, dark-themed raid readiness tracker.
+## Author: NickW
+## Version: 1.2.1
+## SavedVariables: MidnightCheckDB
+
+Database.lua
+Core.lua

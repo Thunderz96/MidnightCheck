@@ -1,0 +1,15 @@
+package-as: MidnightCheck
+
+ignore:
+  - .github
+  - .gitignore
+  - .pkgmeta
+  - .claude
+  - CHANGELOG.md
+  - LICENSE
+  - README.md
+  - build_release.py
+  - update_db.py
+  - build/
+
+enable-nolib-creation: no
