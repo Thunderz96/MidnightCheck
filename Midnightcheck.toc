@@ -2,7 +2,7 @@
 ## Title: Midnight Check
 ## Notes: A modern, dark-themed raid readiness tracker.
 ## Author: NickW
-## Version: 1.2.2
+## Version: 1.2.3
 ## X-Curse-Project-ID: 1485667
 ## SavedVariables: MidnightCheckDB
 
