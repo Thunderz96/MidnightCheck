@@ -1,6 +1,30 @@
 local AddonName, ns = ...
 local Data = ns.Data
 
+local ADDON_VERSION = "1.3.0"
+
+local CHANGELOG = {
+    {
+        version = "1.3.0",
+        date    = "2026-03-15",
+        entries = {
+            "Full spec database — all 40 specs now have enchant recommendations",
+            "Gem recommendations added for all 40 specs",
+            "New consumables: Emergency Soul Link, Void-Touched Drums",
+            "Fixed: ring and weapon enchants now correctly detected",
+            "Enchants now displayed in logical slot order (Head → Weapon)",
+            "What's New popup — view it again via /mc changelog",
+        },
+    },
+    {
+        version = "1.2.4",
+        date    = "2026-03-01",
+        entries = {
+            "Initial public release",
+        },
+    },
+}
+
 -- Initialize SavedVariables for preferences
 MidnightCheckDB = MidnightCheckDB or {}
 MidnightCheckDB.Prefs = MidnightCheckDB.Prefs or {}
@@ -249,6 +273,113 @@ ApplyButtonItems = function()
 end
 
 -- ==========================================
+-- Changelog Popup
+-- ==========================================
+local changelogFrame
+
+local function ShowChangelogPopup()
+    if not changelogFrame then
+        local BACKDROP = {
+            bgFile   = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            tile = true, tileSize = 32, edgeSize = 16,
+            insets = { left=4, right=4, top=4, bottom=4 },
+        }
+        local f = CreateFrame("Frame", "MidnightCheckChangelogFrame", UIParent, "BackdropTemplate")
+        f:SetSize(420, 440)
+        f:SetBackdrop(BACKDROP)
+        f:SetBackdropColor(0, 0, 0, 0.95)
+        f:SetBackdropBorderColor(0.4, 0.1, 0.7, 1)
+        f:SetFrameStrata("DIALOG")
+        f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
+        f:SetScript("OnDragStart", f.StartMoving)
+        f:SetScript("OnDragStop",  f.StopMovingOrSizing)
+        f:SetPoint("CENTER")
+
+        -- Title bar
+        local bar = f:CreateTexture(nil, "ARTWORK")
+        bar:SetPoint("TOPLEFT",  f, "TOPLEFT",  4, -4)
+        bar:SetPoint("TOPRIGHT", f, "TOPRIGHT", -4, -4)
+        bar:SetHeight(28); bar:SetColorTexture(0.15, 0.05, 0.3, 0.95)
+
+        local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        title:SetPoint("TOPLEFT", f, "TOPLEFT", 14, -10)
+        title:SetText("|cFFB266FFMidnight Check|r  —  What's New")
+
+        local xBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+        xBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -2, -2)
+        xBtn:SetScript("OnClick", function() f:Hide() end)
+
+        -- Scroll area
+        local scrollFrame = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+        scrollFrame:SetPoint("TOPLEFT",     f, "TOPLEFT",  12,  -40)
+        scrollFrame:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -30, 44)
+
+        local content = CreateFrame("Frame", nil, scrollFrame)
+        content:SetWidth(scrollFrame:GetWidth() or 360)
+        scrollFrame:SetScrollChild(content)
+
+        -- Populate content
+        local ROW_FONT = "Fonts\\FRIZQT__.TTF"
+        local cy = 0
+        local isFirst = true
+
+        for _, block in ipairs(CHANGELOG) do
+            local verLabel = content:CreateFontString(nil, "OVERLAY")
+            verLabel:SetFont(ROW_FONT, isFirst and 13 or 11)
+            verLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -cy)
+            verLabel:SetWidth(content:GetWidth())
+            if isFirst then
+                verLabel:SetText("|cFFB266FFv" .. block.version .. "|r  |cFF888888— " .. block.date .. "|r")
+            else
+                verLabel:SetText("|cFF666666v" .. block.version .. "  — " .. block.date .. "|r")
+            end
+            cy = cy + (isFirst and 20 or 17)
+
+            for _, entry in ipairs(block.entries) do
+                local bullet = content:CreateFontString(nil, "OVERLAY")
+                bullet:SetFont(ROW_FONT, isFirst and 11 or 10)
+                bullet:SetPoint("TOPLEFT", content, "TOPLEFT", 10, -cy)
+                bullet:SetWidth(content:GetWidth() - 10)
+                bullet:SetJustifyH("LEFT")
+                if isFirst then
+                    bullet:SetText("|cFFCCCCCC• " .. entry .. "|r")
+                else
+                    bullet:SetText("|cFF555555• " .. entry .. "|r")
+                end
+                bullet:SetWordWrap(true)
+                cy = cy + bullet:GetStringHeight() + 4
+            end
+
+            cy = cy + (isFirst and 12 or 8)
+            isFirst = false
+        end
+
+        content:SetHeight(math.max(cy, 10))
+
+        -- "Got it!" button
+        local okBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        okBtn:SetSize(100, 26); okBtn:SetText("Got it!")
+        okBtn:SetPoint("BOTTOM", f, "BOTTOM", 0, 10)
+        okBtn:SetScript("OnClick", function() f:Hide() end)
+
+        changelogFrame = f
+    end
+
+    changelogFrame:Show()
+end
+
+-- Small "What's New" button on the main UI frame
+local changelogBtn = CreateFrame("Button", nil, uiFrame)
+changelogBtn:SetSize(70, 16)
+changelogBtn:SetPoint("TOPLEFT", uiFrame, "TOPLEFT", 8, -12)
+changelogBtn:SetScript("OnClick", ShowChangelogPopup)
+local changelogBtnLabel = changelogBtn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+changelogBtnLabel:SetAllPoints()
+changelogBtnLabel:SetJustifyH("LEFT")
+changelogBtnLabel:SetText("|cFF7744AAWhat's New|r")
+
+-- ==========================================
 -- Core Scanning Logic
 -- ==========================================
 function RunCheck()
@@ -324,8 +455,11 @@ function RunCheck()
     ProcessConsumable("Food",          hasFoodBuff,   true)
     ProcessConsumable("Flasks",        hasFlaskBuff,  true)
     ProcessConsumable("Weapon",        hasWeaponBuff, true)
+    ProcessConsumable("Runes",         false,         false)
     ProcessConsumable("Potions",       false,         false)
     ProcessConsumable("HealthPotions", false,         false)
+    ProcessConsumable("Drums",         false,         false)
+    ProcessConsumable("BattleRez",     false,         false)
 
     if InCombatLockdown() then
         report = report .. "\n|cFFFFFF00(In Combat: Buttons locked to previous state)|r\n"
@@ -336,22 +470,28 @@ function RunCheck()
     local allEnchantsGood = true
     pcall(function()
         if specData.Enchants then
-            for slotId, expectedEnchant in pairs(specData.Enchants) do
-                local numId = tonumber(slotId)
-                if numId then
+            local SLOT_ORDER = { 1, 3, 15, 5, 9, 8, 11, 12, 16, 17 }
+            for _, numId in ipairs(SLOT_ORDER) do
+                local expectedEnchant = specData.Enchants[numId]
+                if expectedEnchant then
                     local slotName = slotNames[numId] or ("Slot " .. numId)
                     local link = GetInventoryItemLink("player", numId)
-                    if not link or not string.find(link, "enchant:", 1, true) then
+                    local enchantID = link and link:match("|Hitem:%d+:(%d+):")
+                    local hasEnchant = enchantID and tonumber(enchantID) ~= 0
+                    if not hasEnchant then
                         report = report .. "   >> |cFFFF5555[MISSING]|r " .. tostring(slotName)
-                            .. " (|cFFB266FFNeeds: " .. tostring(expectedEnchant) .. "|r)\n"
+                            .. " |cFF888888— Recommended: |cFFB266FF" .. tostring(expectedEnchant) .. "|r\n"
                         allEnchantsGood = false
+                    else
+                        report = report .. "   >> |cFF55FF55[OK]|r " .. tostring(slotName)
+                            .. " |cFF555555— " .. tostring(expectedEnchant) .. "|r\n"
                     end
                 end
             end
         end
     end)
     if allEnchantsGood then
-        report = report .. "   >> |cFF55FF55[OK]|r All required gear enchanted.\n"
+        report = report .. "   >> |cFF55FF55[OK]|r All slots enchanted.\n"
     end
 
     -- 3. Check Gems
@@ -371,9 +511,17 @@ function RunCheck()
         end
     end)
     if emptySockets > 0 then
-        report = report .. "   >> |cFFFF5555[MISSING]|r " .. emptySockets .. " Empty Sockets\n"
+        report = report .. "   >> |cFFFF5555[MISSING]|r " .. emptySockets .. " empty socket(s)\n"
     else
         report = report .. "   >> |cFF55FF55[OK]|r All sockets filled\n"
+    end
+    if specData.Gems then
+        if specData.Gems.primary then
+            report = report .. "   >> |cFF888888Recommended:|r |cFFB266FF" .. specData.Gems.primary .. "|r\n"
+        end
+        if specData.Gems.meta then
+            report = report .. "   >> |cFF888888Meta:|r |cFFB266FF" .. specData.Gems.meta .. "|r\n"
+        end
     end
 
     contentText:SetText(report)
@@ -387,10 +535,15 @@ eventListener:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventListener:RegisterEvent("ADDON_LOADED")
 eventListener:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == AddonName then
-        MidnightCheckDB       = MidnightCheckDB or {}
-        MidnightCheckDB.Prefs = MidnightCheckDB.Prefs or {}
+        MidnightCheckDB              = MidnightCheckDB or {}
+        MidnightCheckDB.Prefs        = MidnightCheckDB.Prefs or {}
+        MidnightCheckDB.lastSeenVersion = MidnightCheckDB.lastSeenVersion or nil
         ApplyButtonItems()
     elseif event == "PLAYER_ENTERING_WORLD" then
+        if MidnightCheckDB.lastSeenVersion ~= ADDON_VERSION then
+            MidnightCheckDB.lastSeenVersion = ADDON_VERSION
+            C_Timer.After(3, ShowChangelogPopup)
+        end
         if select(2, GetInstanceInfo()) == "raid" then
             C_Timer.After(2, function()
                 print("|cFFB266FF[MidnightCheck]|r Raid detected. Running readiness scan...")
@@ -402,7 +555,13 @@ end)
 
 SLASH_MIDNIGHTCHECK1 = "/mc"
 SLASH_MIDNIGHTCHECK2 = "/midnight"
-SlashCmdList["MIDNIGHTCHECK"] = function() RunCheck() end
+SlashCmdList["MIDNIGHTCHECK"] = function(input)
+    if input and input:lower() == "changelog" then
+        ShowChangelogPopup()
+    else
+        RunCheck()
+    end
+end
 
 -- ==========================================
 -- Minimap Button
